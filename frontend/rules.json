@@ -1,0 +1,34 @@
+{
+    "rules": [
+      {
+        "patterns": [
+          "src/app/apply/**",
+          "src/components/apply/**",
+          "src/store/**",
+          "src/lib/fakeChain.ts"
+        ],
+        "description": "Global rules for Apply flow: camera modal, scroll fixes, mock DID/key generation, fake chain metadata, Pending Verification status, and proper UI behaviors.",
+        "instructions": [
+          "Whenever creating an Apply form modal, always wrap DialogContent in a top-level <div className='max-h-[90vh] w-full overflow-hidden flex flex-col touch-pan-y'>.",
+          "Inside DialogContent, the scrollable region must be a <div className='max-h-[80vh] overflow-y-auto p-4 space-y-4 touch-pan-y'> container.",
+          "The camera preview container must always include: 'w-full rounded-lg overflow-hidden bg-black', and <video> should be responsive with autoPlay and playsInline.",
+          "Add a mobile-friendly bottom sticky action bar using <div className='sticky bottom-0 bg-background p-3 border-t flex gap-2'> for capture, retake, close, and submit buttons.",
+          "Ensure the camera modal never gets cut off: parent containers must not set overflow: hidden except on the DialogContent root. Use overflow-y-auto for inner scrolling.",
+          "Store captured photos as base64 strings inside Zustand: applications[id].photo = base64Image.",
+          "On form submission, generate mock DID, privateKey, and publicKey. The DID format must be: did:vault:0x{first16CharsOfPublicKey}.",
+          "Use fakeChain.ts to generate fake CID, fake tx hash, and fake block number: cid='cid-'+randomString(32), tx='0x'+randomHex(64), block=randomInt(1000,9999).",
+          "After addApplication(), immediately update application.status to 'PendingVerification' and display a badge 'Offline verification pending…'.",
+          "All metadata rows (cid, tx, block, timestamp) must use monospace font and truncated versions for display (first 8 + '…' + last 6).",
+          "Camera modal must allow scrolling on small screens: enforce 'touch-pan-y' and avoid nested overflow hidden containers.",
+          "Ensure all forms include required fields and placeholder proof sections (dashed borders).",
+          "All UI must be responsive: use grid classes md:grid-cols-2 and xl:grid-cols-3 for application catalog.",
+          "Do not perform any real uploads or network calls. Only simulate everything client-side.",
+          "When user clicks 'Verify offline', show three toasts in sequence: 'Capturing selfie…', 'Matching biometric template…', 'Generating zero-knowledge proof…'. After finishing, keep status = 'PendingVerification'.",
+          "Approved status must only update when issuer-simulator triggers a state update via Zustand.",
+          "Always store private keys ONLY locally. Never log private keys.",
+          "All modals must be scrollable and never hide camera preview or action buttons, regardless of device height."
+        ]
+      }
+    ]
+  }
+  
