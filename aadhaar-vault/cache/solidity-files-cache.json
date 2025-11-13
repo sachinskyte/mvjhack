@@ -1,0 +1,40 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\mvjhack\\mvjhack\\aadhaar-vault\\contracts\\AadhaarApplications.sol": {
+      "lastModificationDate": 1763042077984,
+      "contentHash": "4e71739382a330030999bb67785bb048",
+      "sourceName": "contracts/AadhaarApplications.sol",
+      "solcConfig": {
+        "version": "0.8.17",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.17"
+      ],
+      "artifacts": [
+        "AadhaarApplications"
+      ]
+    }
+  }
+}

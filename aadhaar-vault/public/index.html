@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Aadhaar Application — Local Upload (no Web3.Storage, no MetaMask)</title>
+  <style>body{font-family:Arial;padding:20px;max-width:900px} input,textarea{width:100%;padding:8px;margin:6px 0}</style>
+</head>
+<body>
+  <h2>Aadhaar Application — Demo (encrypt in browser, upload to server, no MetaMask)</h2>
+
+  <label>Full name</label><input id="name" />
+  <label>Date of birth</label><input id="dob" placeholder="YYYY-MM-DD" />
+  <label>Address</label><textarea id="address"></textarea>
+  <label>Aadhaar number (demo only)</label><input id="aadhaar" />
+  <label>Email or DID (used to compute recordId)</label><input id="identifier" />
+  <label>Photo (optional)</label><input id="photo" type="file" />
+
+  <div style="margin-top:12px">
+    <button id="submit">Encrypt → Upload → Anchor</button>
+  </div>
+
+  <h3>Result</h3>
+  <pre id="result">no action yet</pre>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+<script>
+(async () => {
+  // helpers: Web Crypto AES-GCM
+  async function genKey() {
+    return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+  }
+  async function exportKeyRaw(key) {
+    const raw = await crypto.subtle.exportKey("raw", key);
+    return new Uint8Array(raw);
+  }
+  async function encryptJSON(key, obj) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = new TextEncoder().encode(JSON.stringify(obj));
+    const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+    const u8 = new Uint8Array(cipher);
+    const out = new Uint8Array(iv.length + u8.length);
+    out.set(iv, 0);
+    out.set(u8, iv.length);
+    return out;
+  }
+  function u8ToHex(u8) { return "0x" + Array.from(u8).map(b => b.toString(16).padStart(2,"0")).join(""); }
+
+  const submitBtn = document.getElementById("submit");
+  const resultPre = document.getElementById("result");
+
+  submitBtn.onclick = async () => {
+    try {
+      resultPre.innerText = "Reading form...";
+      const name = document.getElementById("name").value;
+      const dob = document.getElementById("dob").value;
+      const addr = document.getElementById("address").value;
+      const aad = document.getElementById("aadhaar").value;
+      const identifier = document.getElementById("identifier").value || (name + dob);
+      const photoInput = document.getElementById("photo");
+
+      let photoBase64 = null;
+      if (photoInput.files.length) {
+        const file = photoInput.files[0];
+        const ab = await file.arrayBuffer();
+        photoBase64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+      }
+
+      const payload = { name, dob, address: addr, aadhaar: aad, identifier, photo: photoBase64 };
+      resultPre.innerText = "Generating AES key and encrypting payload...";
+
+      const aesKey = await genKey();
+      const rawKey = await exportKeyRaw(aesKey); // let user download/save this
+      const encryptedU8 = await encryptJSON(aesKey, payload);
+
+      // convert to hex for JSON transport
+      const encHex = u8ToHex(encryptedU8);
+      resultPre.innerText = "Uploading encrypted blob to server...";
+
+      // POST to server /api/submit
+      const resp = await fetch("/api/submit", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ identifier, encryptedHex: encHex })
+      }).then(r => r.json());
+
+      if (resp.error) {
+        resultPre.innerText = "Server error: " + resp.error;
+        return;
+      }
+
+      resultPre.innerText = `Relayer anchored application.
+txHash: ${resp.txHash}
+blockNumber: ${resp.blockNumber}
+recordId: ${resp.recordId}
+hash: ${resp.hash}
+cid: ${resp.cid}
+
+AES key (hex, save to decrypt later):
+${u8ToHex(rawKey)}
+`;
+
+    } catch (e) {
+      console.error(e);
+      resultPre.innerText = "Error: " + (e.message || e);
+    }
+  };
+})();
+</script>
+</body>
+</html>

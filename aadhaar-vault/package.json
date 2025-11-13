@@ -1,0 +1,21 @@
+{
+  "name": "aadhaar-vault",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "node": "npx hardhat node",
+    "deploy": "npx hardhat run --network localhost scripts/deploy.js",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "hardhat": "2.9.9"
+  },
+  "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^5.7.2",
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0"
+  }
+}

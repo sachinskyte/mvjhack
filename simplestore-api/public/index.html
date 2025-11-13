@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SimpleStore API UI</title>
+  <style>body{font-family:sans-serif;padding:20px} input{width:380px}</style>
+</head>
+<body>
+  <h2>SimpleStore REST API UI</h2>
+
+  <div>
+    <label>Enter name to store (server will sign tx):</label><br/>
+    <input id="name" placeholder="Alice" />
+    <button id="store">Store via API</button>
+  </div>
+
+  <p><strong>Response:</strong></p>
+  <pre id="resp">no response yet</pre>
+
+  <hr/>
+
+  <div>
+    <label>Read name for address:</label><br/>
+    <input id="addr" placeholder="0x..." />
+    <button id="read">Read</button>
+  </div>
+
+  <pre id="readout">not read yet</pre>
+
+  <hr/>
+
+  <div>
+    <button id="events">Fetch events</button>
+  </div>
+  <pre id="eventsout">no events yet</pre>
+
+<script>
+const apiBase = ""; // same host (served by server) so blank
+
+document.getElementById('store').onclick = async () => {
+  const name = document.getElementById('name').value || "Alice";
+  const r = await fetch(apiBase + "/api/store", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ name })
+  }).then(r => r.json());
+  document.getElementById('resp').innerText = JSON.stringify(r, null, 2);
+};
+
+document.getElementById('read').onclick = async () => {
+  const addr = document.getElementById('addr').value;
+  if (!addr) return alert("paste address");
+  const r = await fetch(apiBase + "/api/read/" + encodeURIComponent(addr)).then(r => r.json());
+  document.getElementById('readout').innerText = JSON.stringify(r, null, 2);
+};
+
+document.getElementById('events').onclick = async () => {
+  const r = await fetch(apiBase + "/api/events").then(r => r.json());
+  document.getElementById('eventsout').innerText = JSON.stringify(r, null, 2);
+};
+</script>
+</body>
+</html>
