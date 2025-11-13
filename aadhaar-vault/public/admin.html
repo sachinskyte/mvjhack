@@ -1,0 +1,306 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Admin — Full Control</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:Inter,Arial,Helvetica,sans-serif;margin:18px;background:#f6f8fb;color:#111}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  h1{font-size:20px;margin:0}
+  .controls > button{margin-left:8px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{background:#fff;border-radius:8px;padding:12px;border:1px solid #e6e9ef}
+  .card{border:1px solid #eee;padding:10px;border-radius:8px;margin-bottom:10px;background:#fff}
+  pre{background:#f7f7fb;padding:8px;border-radius:6px;overflow:auto;max-height:240px}
+  button{padding:6px 10px;border-radius:6px;border:1px solid #cfd8e3;background:#fff;cursor:pointer}
+  .btn-primary{background:#0b74de;color:#fff;border-color:#0b74de}
+  .small{font-size:13px;color:#555}
+  .status{display:inline-block;padding:4px 8px;border-radius:6px;font-weight:600}
+  .s-sub{background:#fff8e6;color:#a77a00;border:1px solid #f0d9b0}
+  .s-ver{background:#e8fff0;color:#118a3a;border:1px solid #cfead8}
+  .s-rej{background:#fff0f0;color:#b32424;border:1px solid #f2c6c6}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .muted{color:#666;font-size:13px}
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Admin Dashboard — All Submissions</h1>
+      <div class="small muted">Admin view: see local store + on-chain, verify/reject, download blobs, export JSON</div>
+    </div>
+    <div class="controls">
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn">Logout</button>
+      <button id="refreshBtn">Refresh</button>
+      <button id="exportAllBtn">Export All (JSON)</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="panel" id="leftPanel">
+      <h3>Local Store (fast)</h3>
+      <div class="small muted">This reads <code>/api/all</code> — contains the server index and local metadata.</div>
+      <div id="localList">Loading local store…</div>
+    </div>
+
+    <div class="panel" id="rightPanel">
+      <h3>On-chain (canonical)</h3>
+      <div class="small muted">This reads <code>/api/all-onchain</code> — canonical values from the smart contract.</div>
+      <div id="onchainList">Loading on-chain list…</div>
+    </div>
+  </div>
+
+  <hr style="margin:16px 0" />
+
+  <section class="panel">
+    <h3>Action log / Last response</h3>
+    <pre id="log">No actions yet — check console for more details.</pre>
+  </section>
+
+<script>
+  // helper utilities
+  const $ = sel => document.querySelector(sel);
+  const escapeId = s => s ? s.replace(/[^a-z0-9]/gi,'_') : 'x';
+
+  function statusBadge(status){
+    if (status === 0 || status === "0" || status === "Submitted") return '<span class="status s-sub">Submitted</span>';
+    if (status === 1 || status === "1" || status === "Verified") return '<span class="status s-ver">Verified</span>';
+    if (status === 2 || status === "2" || status === "Rejected") return '<span class="status s-rej">Rejected</span>';
+    return '<span class="status">'+String(status)+'</span>';
+  }
+
+  async function apiGet(path){
+    try {
+      const r = await fetch(path, { credentials: 'same-origin' });
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`HTTP ${r.status} - ${t}`);
+      }
+      const j = await r.json();
+      console.debug('GET', path, j);
+      return j;
+    } catch (e) {
+      console.error('apiGet error', path, e);
+      throw e;
+    }
+  }
+  async function apiPost(path, body){
+    try {
+      const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'same-origin' });
+      const txt = await r.text();
+      let j=null;
+      try { j = JSON.parse(txt); } catch(e){ j = txt; }
+      if (!r.ok) throw new Error(`HTTP ${r.status} - ${JSON.stringify(j)}`);
+      console.debug('POST', path, j);
+      return j;
+    } catch (e) {
+      console.error('apiPost error', path, e);
+      throw e;
+    }
+  }
+
+  // render local store
+  async function loadLocal(){
+    const container = document.getElementById('localList');
+    container.innerHTML = 'Loading local store…';
+    try {
+      const arr = await apiGet('/api/all');
+      if (!arr || arr.length === 0) { container.innerHTML = '<div class="small muted">No local submissions</div>'; return; }
+      container.innerHTML = '';
+      arr.forEach(entry => {
+        const idSafe = escapeId(entry.recordId);
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700;word-break:break-all">${entry.recordId}</div>
+            <div>${statusBadge(entry.status)}</div>
+          </div>
+          <div class="muted small" style="margin-top:6px">
+            <div><b>identifier</b>: ${entry.identifier || '—'}</div>
+            <div><b>hash</b>: <code style="word-break:break-all">${entry.hash || '—'}</code></div>
+            <div><b>cid</b>: ${entry.cid || '—'}</div>
+            <div><b>submitTx</b>: ${entry.submitTx || '—'}</div>
+            <div><b>onchainError</b>: ${entry.onchainError || '—'}</div>
+          </div>
+          <div style="margin-top:8px" class="row">
+            <button class="download" data-rid="${entry.recordId}">Download</button>
+            <button class="verify" data-rid="${entry.recordId}">Verify</button>
+            <button class="reject" data-rid="${entry.recordId}">Reject</button>
+            <button class="export" data-rid="${entry.recordId}">Export</button>
+            <span id="msg_${idSafe}" class="muted"></span>
+          </div>
+          <pre id="raw_${idSafe}" style="display:none"></pre>
+        `;
+        container.appendChild(card);
+      });
+    } catch (e) {
+      container.innerHTML = `<div class="small" style="color:#b32424">Error loading local store: ${e.message}</div>`;
+      document.getElementById('log').innerText = e.stack || e.message || String(e);
+    }
+  }
+
+  // render on-chain
+  async function loadOnchain(){
+    const container = document.getElementById('onchainList');
+    container.innerHTML = 'Loading on-chain list…';
+    try {
+      const arr = await apiGet('/api/all-onchain');
+      if (!arr || arr.length === 0) { container.innerHTML = '<div class="small muted">No on-chain entries</div>'; return; }
+      container.innerHTML = '';
+      arr.forEach(item => {
+        const idSafe = escapeId(item.recordId);
+        const card = document.createElement('div');
+        card.className = 'card';
+        const ts = item.timestamp ? (Number(item.timestamp) > 1e12 ? new Date(Number(item.timestamp)).toLocaleString() : new Date(Number(item.timestamp)*1000).toLocaleString()) : '—';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-weight:700;word-break:break-all">${item.recordId}</div>
+            <div>${statusBadge(item.status)}</div>
+          </div>
+          <div class="muted small" style="margin-top:6px">
+            <div><b>applicant</b>: ${item.applicant || '—'}</div>
+            <div><b>verifier</b>: ${item.verifier || '—'}</div>
+            <div><b>hash</b>: <code style="word-break:break-all">${item.hash || '—'}</code></div>
+            <div><b>cid</b>: ${item.cid || '—'}</div>
+            <div><b>timestamp</b>: ${ts}</div>
+          </div>
+          <div style="margin-top:8px" class="row">
+            <button class="download" data-rid="${item.recordId}">Download</button>
+            <button class="export" data-rid="${item.recordId}">Export On-Chain</button>
+            <span id="msg_onchain_${idSafe}" class="muted"></span>
+          </div>
+          <pre id="raw_onchain_${idSafe}" style="display:none"></pre>
+        `;
+        container.appendChild(card);
+      });
+    } catch (e) {
+      container.innerHTML = `<div class="small" style="color:#b32424">Error loading on-chain: ${e.message}</div>`;
+      document.getElementById('log').innerText = e.stack || e.message || String(e);
+    }
+  }
+
+  // wire delegated click handlers
+  document.addEventListener('click', async (ev) => {
+    const t = ev.target;
+    // download (works for local or on-chain cards; both have .download)
+    if (t.matches('.download')) {
+      const rid = t.dataset.rid;
+      const idSafe = escapeId(rid);
+      const msgEl = document.getElementById('msg_' + idSafe) || document.getElementById('msg_onchain_' + idSafe);
+      if (msgEl) msgEl.innerText = 'Downloading...';
+      const rawEl = document.getElementById('raw_' + idSafe) || document.getElementById('raw_onchain_' + idSafe);
+      if (rawEl) { rawEl.style.display = 'block'; rawEl.innerText = 'Downloading...'; }
+      try {
+        const j = await apiGet('/api/download/' + encodeURIComponent(rid));
+        if (msgEl) msgEl.innerText = 'Downloaded';
+        if (rawEl) rawEl.innerText = JSON.stringify(j, null, 2);
+        document.getElementById('log').innerText = `Downloaded ${rid} — size: ${j.encryptedHex ? (j.encryptedHex.length/2) + ' bytes' : 'unknown'}`;
+        console.log('download', rid, j);
+      } catch (e) {
+        if (msgEl) msgEl.innerText = 'Download error: ' + e.message;
+        if (rawEl) rawEl.innerText = 'Download error: ' + e.message;
+        document.getElementById('log').innerText = 'Download error: ' + e.stack || e.message;
+      }
+    }
+
+    // verify
+    if (t.matches('.verify')) {
+      const rid = t.dataset.rid;
+      const idSafe = escapeId(rid);
+      const msgEl = document.getElementById('msg_' + idSafe);
+      if (msgEl) msgEl.innerText = 'Verifying...';
+      try {
+        const j = await apiPost('/api/admin/verify', { recordId: rid });
+        if (msgEl) msgEl.innerText = 'Verified: ' + (j.txHash || JSON.stringify(j));
+        document.getElementById('log').innerText = `Verify ${rid}: ${JSON.stringify(j)}`;
+        console.log('verify', rid, j);
+      } catch (e) {
+        if (msgEl) msgEl.innerText = 'Verify error: ' + e.message;
+        document.getElementById('log').innerText = 'Verify error: ' + (e.stack || e.message);
+      } finally { await refreshAll(); }
+    }
+
+    // reject
+    if (t.matches('.reject')) {
+      const rid = t.dataset.rid;
+      const idSafe = escapeId(rid);
+      const msgEl = document.getElementById('msg_' + idSafe);
+      if (msgEl) msgEl.innerText = 'Rejecting...';
+      try {
+        const j = await apiPost('/api/admin/reject', { recordId: rid });
+        if (msgEl) msgEl.innerText = 'Rejected: ' + (j.txHash || JSON.stringify(j));
+        document.getElementById('log').innerText = `Reject ${rid}: ${JSON.stringify(j)}`;
+        console.log('reject', rid, j);
+      } catch (e) {
+        if (msgEl) msgEl.innerText = 'Reject error: ' + e.message;
+        document.getElementById('log').innerText = 'Reject error: ' + (e.stack || e.message);
+      } finally { await refreshAll(); }
+    }
+
+    // export single record (from local or on-chain)
+    if (t.matches('.export')) {
+      const rid = t.dataset.rid;
+      try {
+        // prefer local if available
+        const local = await apiGet('/api/all');
+        const found = (local || []).find(s=>s.recordId === rid);
+        const payload = found || (await apiGet('/api/application/' + encodeURIComponent(rid)));
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (rid.replace(/^0x/,'') || rid) + '.json';
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        document.getElementById('log').innerText = `Exported ${rid}`;
+      } catch (e) {
+        document.getElementById('log').innerText = `Export error ${rid}: ${e.message}`;
+      }
+    }
+  });
+
+  // small helpers for login/logout and refresh
+  document.getElementById('loginBtn').onclick = async () => {
+    const role = prompt('Login role (admin):', 'admin');
+    const pw = prompt('Password:', '');
+    if (!role) return;
+    try {
+      const j = await apiPost('/login', { role, password: pw });
+      alert('Login response: ' + JSON.stringify(j));
+      await refreshAll();
+    } catch (e) {
+      alert('Login failed: ' + e.message);
+    }
+  };
+  document.getElementById('logoutBtn').onclick = async () => {
+    await fetch('/logout', { credentials: 'same-origin' });
+    document.getElementById('log').innerText = 'Logged out';
+  };
+  document.getElementById('refreshBtn').onclick = () => refreshAll();
+  document.getElementById('exportAllBtn').onclick = async () => {
+    try {
+      const all = await apiGet('/api/all');
+      const blob = new Blob([JSON.stringify(all, null, 2)], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'submissions_all.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      document.getElementById('log').innerText = 'Exported all submissions';
+    } catch (e) {
+      document.getElementById('log').innerText = 'Export all failed: ' + e.message;
+    }
+  };
+
+  async function refreshAll(){
+    document.getElementById('log').innerText = 'Refreshing lists...';
+    console.log('refreshAll start');
+    await Promise.all([loadLocal(), loadOnchain()]);
+    document.getElementById('log').innerText = 'Refreshed at ' + new Date().toLocaleString();
+    console.log('refreshAll done');
+  }
+
+  // initial load
+  refreshAll();
+</script>
+</body>
+</html>

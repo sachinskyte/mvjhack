@@ -1,0 +1,25 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Login</title></head><body>
+  <h2>Login (demo)</h2>
+  <div>
+    <label>Role:
+      <select id="role"><option value="user">user</option><option value="govt">govt</option><option value="admin">admin</option></select>
+    </label>
+  </div>
+  <div><label>Password: <input id="pw" type="password"></label></div>
+  <div><button id="login">Login</button> <button id="logout">Logout</button></div>
+  <pre id="msg"></pre>
+  <p>Go to: <a href="/user.html">User</a> | <a href="/govt.html">Govt</a> | <a href="/unhash.html">Unhash</a></p>
+<script>
+document.getElementById('login').onclick = async () => {
+  const role = document.getElementById('role').value;
+  const pw = document.getElementById('pw').value;
+  const r = await fetch('/login',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({role, password: pw})}).then(r=>r.json());
+  document.getElementById('msg').innerText = JSON.stringify(r, null, 2);
+};
+document.getElementById('logout').onclick = async () => {
+  const r = await fetch('/logout').then(r=>r.json());
+  document.getElementById('msg').innerText = JSON.stringify(r, null, 2);
+};
+</script>
+</body></html>

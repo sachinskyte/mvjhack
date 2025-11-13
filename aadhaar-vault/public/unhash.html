@@ -1,0 +1,89 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Unhash / Decrypt</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>body{font-family:Arial;margin:18px} input{width:100%;padding:8px;margin:6px 0;border:1px solid #ccc;border-radius:6px} button{padding:8px 12px;border-radius:6px} pre{background:#f7f7f7;padding:8px;border-radius:6px}</style></head>
+<body>
+<h2>Unhash / Decrypt</h2>
+<p>Download encrypted blob for a record (Govt/Admin can do this). Paste AES key (hex) you received from user and press Decrypt.</p>
+<div>
+  <button id="loginBtn">Login</button>
+  <button id="refreshBtn">Refresh list</button>
+</div>
+<div id="list">Loading…</div>
+
+<h3>Downloaded encrypted blob</h3>
+<pre id="enc">No blob</pre>
+<label>AES key (hex)</label>
+<input id="aes" placeholder="0x..." />
+<button id="decBtn">Decrypt</button>
+
+<h3>Decrypted output</h3>
+<pre id="out">No output</pre>
+
+<script>
+function escapeId(s){ return s ? s.replace(/[^a-z0-9]/gi,'_') : 'x'; }
+async function apiGet(path){ const r = await fetch(path, { credentials:'same-origin' }); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+
+async function loadList(){
+  const c = document.getElementById('list'); c.innerText='Loading…';
+  try {
+    const arr = await apiGet('/api/all-onchain');
+    if(!arr || !arr.length) { c.innerText='No records'; return; }
+    c.innerHTML = '';
+    arr.forEach(a=>{
+      const d = document.createElement('div'); d.style='border:1px solid #eee;padding:8px;margin:8px 0;border-radius:6px';
+      d.innerHTML = `<div style="font-weight:700;word-break:break-all">${a.recordId}</div>
+        <div class="small">CID: ${a.cid || '—'} | status: ${a.status}</div>
+        <div style="margin-top:8px"><button class="dl" data-rid="${a.recordId}">Download</button></div>
+        <pre id="p_${escapeId(a.recordId)}" style="display:none"></pre>`;
+      c.appendChild(d);
+    });
+  } catch(e){ c.innerText = 'Error: ' + e.message; }
+}
+
+document.addEventListener('click', async (ev)=> {
+  const t = ev.target;
+  if (t.matches('.dl')) {
+    const rid = t.dataset.rid;
+    const pre = document.getElementById('p_' + escapeId(rid));
+    pre.style.display = 'block'; pre.innerText = 'Downloading...';
+    try {
+      const j = await apiGet('/api/download/' + encodeURIComponent(rid));
+      pre.innerText = JSON.stringify(j, null, 2);
+      document.getElementById('enc').innerText = JSON.stringify(j, null, 2);
+      document.getElementById('out').innerText = '';
+    } catch(e) { pre.innerText = 'Error: ' + e.message; }
+  }
+});
+
+function hexToU8(h){ if (!h) return new Uint8Array(); if (h.startsWith('0x')) h=h.slice(2); const u = new Uint8Array(h.length/2); for (let i=0;i<u.length;i++) u[i]=parseInt(h.substr(i*2,2),16); return u; }
+
+document.getElementById('decBtn').onclick = async () => {
+  try {
+    const encText = document.getElementById('enc').innerText; if (!encText) return alert('Download an encrypted blob first');
+    const obj = JSON.parse(encText);
+    const encHex = obj.encryptedHex;
+    if (!encHex) return alert('No encryptedHex in download');
+    const aesHex = document.getElementById('aes').value.trim(); if (!aesHex) return alert('Paste AES key hex');
+    const u8 = hexToU8(encHex);
+    const raw = hexToU8(aesHex);
+    const key = await crypto.subtle.importKey('raw', raw, { name:'AES-GCM' }, false, ['decrypt']);
+    const iv = u8.slice(0,12);
+    const cipher = u8.slice(12);
+    const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, cipher);
+    const txt = new TextDecoder().decode(plain);
+    document.getElementById('out').innerText = txt;
+  } catch (e) {
+    document.getElementById('out').innerText = 'Decrypt error: ' + (e.message || e);
+  }
+};
+
+document.getElementById('loginBtn').onclick = async ()=> {
+  const role = prompt('role (user/govt/admin):','govt'); const pw = prompt('password:','');
+  const r = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ role, password: pw }), credentials:'same-origin' });
+  const j = await r.json(); alert(JSON.stringify(j)); loadList();
+};
+
+document.getElementById('refreshBtn').onclick = loadList;
+loadList();
+</script></body></html>

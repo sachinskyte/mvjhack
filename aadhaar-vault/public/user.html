@@ -1,0 +1,110 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>User — Aadhaar Application</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+body{font-family:Arial;margin:18px} input,textarea,select{width:100%;padding:8px;margin:6px 0;border:1px solid #ccc;border-radius:6px} button{padding:8px 12px;border-radius:6px}
+pre{background:#f7f7f7;padding:8px;border-radius:6px}
+.small{font-size:13px;color:#666}
+.notice{background:#fff5f0;padding:8px;border-radius:6px;border:1px solid #ffd0b8}
+</style></head>
+<body>
+<h2>User — Aadhaar Application (Demo)</h2>
+<div class="notice"><strong>Security note:</strong> This demo stores encrypted blobs and optionally plaintext on the server when "Reveal to Govt" is checked. This is insecure — in production use proper cryptography/DID flows.</div>
+
+<div>
+  <label>Login role (demo): <select id="role"><option value="user">user</option><option value="govt">govt</option><option value="admin">admin</option></select></label>
+  <label>Password (demo): <input id="pw" type="password" placeholder="password"></label>
+  <button id="loginBtn">Login</button>
+  <button id="logoutBtn">Logout</button>
+  <div id="loginMsg" class="small"></div>
+</div>
+
+<hr/>
+
+<form id="form">
+  <label>Full name <input id="name" required></label>
+  <label>Date of birth <input id="dob" type="date"></label>
+  <label>Address <textarea id="address"></textarea></label>
+  <label>Identifier (email / DID) <input id="identifier" placeholder="email@example.com"></label>
+  <label>Photo (optional) <input id="photo" type="file" accept="image/*"></label>
+  <label><input type="checkbox" id="reveal"/> Reveal data to Govt (demo only)</label>
+  <button type="button" id="submitBtn">Encrypt & Submit</button>
+</form>
+
+<h3>Submission result</h3>
+<pre id="result">No submission yet.</pre>
+
+<script>
+/* helper functions */
+async function postJson(url, body) {
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials: 'same-origin' });
+  const text = await r.text();
+  try { return { ok: r.ok, status: r.status, json: JSON.parse(text) }; } catch(e){ return { ok: r.ok, status: r.status, json: text }; }
+}
+
+document.getElementById('loginBtn').onclick = async () => {
+  const role = document.getElementById('role').value;
+  const pw = document.getElementById('pw').value;
+  const res = await postJson('/login', { role, password: pw });
+  document.getElementById('loginMsg').innerText = JSON.stringify(res.json, null, 2);
+};
+
+document.getElementById('logoutBtn').onclick = async () => {
+  await fetch('/logout', { credentials: 'same-origin' });
+  document.getElementById('loginMsg').innerText = 'Logged out';
+};
+
+function u8ToHex(u8){ return '0x' + Array.from(u8).map(b => b.toString(16).padStart(2,'0')).join(''); }
+async function genAES(){ return crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']); }
+async function exportKey(key){ const raw = await crypto.subtle.exportKey('raw', key); return new Uint8Array(raw); }
+async function encryptKey(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, data);
+  const out = new Uint8Array(iv.length + ct.byteLength);
+  out.set(iv, 0); out.set(new Uint8Array(ct), iv.length);
+  return out;
+}
+
+document.getElementById('submitBtn').onclick = async () => {
+  try {
+    const name = document.getElementById('name').value.trim();
+    const dob = document.getElementById('dob').value;
+    const address = document.getElementById('address').value.trim();
+    const identifier = document.getElementById('identifier').value.trim() || (name + '|' + dob);
+    if (!name || !identifier) return alert('Enter name and identifier');
+    const reveal = document.getElementById('reveal').checked;
+
+    let photoB64 = null;
+    const photoInput = document.getElementById('photo');
+    if (photoInput.files.length) {
+      const ab = await photoInput.files[0].arrayBuffer();
+      photoB64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+    }
+
+    const payload = { name, dob, address, identifier, photo: photoB64, createdAt: Date.now() };
+
+    // AES encrypt client-side
+    const aesKey = await genAES();
+    const rawKey = await exportKey(aesKey);
+    const cipherU8 = await encryptKey(aesKey, payload);
+    const encHex = u8ToHex(cipherU8);
+    const aesHex = u8ToHex(rawKey); // user must save this to decrypt later
+
+    // build submit payload
+    const body = { identifier, encryptedHex: encHex, revealToGovt: reveal };
+    // if user checked reveal, include plainData (INSECURE demo only)
+    if (reveal) body.plainData = payload;
+
+    const res = await postJson('/api/submit', body);
+    const out = { server: res.json, aesKeyHex: aesHex };
+    document.getElementById('result').innerText = JSON.stringify(out, null, 2);
+    console.log('submit result', out);
+    alert('Submission done. SAVE aesKeyHex (shown in Result) to decrypt later.');
+  } catch (e) {
+    document.getElementById('result').innerText = 'Error: ' + e.message;
+    console.error(e);
+  }
+};
+</script>
+</body></html>

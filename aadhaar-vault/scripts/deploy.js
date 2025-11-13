@@ -1,14 +1,9 @@
-// deploy.js
-require('dotenv').config();
-const hre = require("hardhat");
-
 async function main() {
-  const adminAddress = process.env.DEPLOY_ADMIN || (await hre.ethers.getSigners())[0].address;
-  console.log("Using admin:", adminAddress);
-
-  const Aadhaar = await hre.ethers.getContractFactory("AadhaarApplications");
-  const aad = await Aadhaar.deploy(adminAddress);
-  await aad.deployed();
-  console.log("AadhaarApplications deployed to:", aad.address);
+  const [deployer] = await ethers.getSigners();
+  console.log("Deploying with account:", deployer.address);
+  const AadhaarVault = await ethers.getContractFactory("AadhaarVault");
+  const vault = await AadhaarVault.deploy();
+  await vault.deployed();
+  console.log("AadhaarVault deployed to:", vault.address);
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e)=>{ console.error(e); process.exitCode=1; });

@@ -1,0 +1,114 @@
+<!doctype html>
+<html><head><meta charset="utf-8"/><title>Govt Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+body{font-family:Arial;margin:18px} .card{border:1px solid #eee;padding:10px;border-radius:8px;margin-bottom:10px;background:#fff}
+button{padding:6px 10px;border-radius:6px;margin-right:6px} pre{background:#f7f7f7;padding:8px;border-radius:6px}
+.small{font-size:13px;color:#666}
+.status{display:inline-block;padding:4px 8px;border-radius:6px;font-weight:600}
+.s-sub{background:#fff8e6;color:#a77a00}
+.s-ver{background:#e8fff0;color:#118a3a}
+.s-rej{background:#fff0f0;color:#b32424}
+</style></head><body>
+<h2>Govt — Applications</h2>
+<div>
+  <button id="loginBtn">Login (govt)</button>
+  <button id="logoutBtn">Logout</button>
+  <button id="refreshBtn">Refresh</button>
+</div>
+<p class="small">If applicant checked "Reveal to Govt" at submission, the plaintext will appear below. Otherwise you will only see the encrypted hash/CID and must request AES key from applicant separately.</p>
+<div id="list">Loading…</div>
+<pre id="msg"></pre>
+
+<script>
+function statusBadge(s){
+  if (s === 0 || s === "0" || s === "Submitted") return '<span class="status s-sub">Submitted</span>';
+  if (s === 1 || s === "1" || s === "Verified") return '<span class="status s-ver">Verified</span>';
+  if (s === 2 || s === "2" || s === "Rejected") return '<span class="status s-rej">Rejected</span>';
+  return '<span class="status">'+String(s)+'</span>';
+}
+
+async function apiGet(path){ const r = await fetch(path, { credentials:'same-origin' }); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+async function apiPost(path, body){ const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), credentials:'same-origin' }); const txt = await r.text(); try { return JSON.parse(txt); } catch(e) { return txt; } }
+
+async function render(){
+  const c = document.getElementById('list'); c.innerText = 'Loading…';
+  try {
+    const arr = await apiGet('/api/all-onchain');
+    if (!arr || arr.length===0){ c.innerHTML = '<div class="small">No submissions</div>'; return; }
+    c.innerHTML = '';
+    arr.forEach(a => {
+      const div = document.createElement('div'); div.className='card';
+      const ts = a.timestamp ? (Number(a.timestamp) > 1e12 ? new Date(Number(a.timestamp)).toLocaleString() : new Date(Number(a.timestamp)*1000).toLocaleString()) : '—';
+      div.innerHTML = `<div style="display:flex;justify-content:space-between">
+        <div style="font-weight:700;word-break:break-all">${a.recordId}</div>
+        <div>${statusBadge(a.status)}</div>
+      </div>
+      <div class="small" style="margin-top:6px">
+        <div><b>identifier</b>: ${a.cid ? (a.cid) : (a.identifier || '—')}</div>
+        <div><b>hash</b>: <code style="word-break:break-all">${a.hash || '—'}</code></div>
+        <div><b>CID</b>: ${a.cid || '—'}</div>
+        <div><b>applicant</b>: ${a.applicant || '—'}</div>
+        <div><b>verifier</b>: ${a.verifier || '—'}</div>
+        <div><b>timestamp</b>: ${ts}</div>
+      </div>
+      <div style="margin-top:8px">
+        <button class="verify" data-rid="${a.recordId}">Verify</button>
+        <button class="reject" data-rid="${a.recordId}">Reject</button>
+        <button class="download" data-rid="${a.recordId}">Download encrypted</button>
+      </div>
+      <div style="margin-top:8px">
+        <b>Plain data (if user revealed)</b>: <pre>${a.plainData ? JSON.stringify(a.plainData, null, 2) : 'Not revealed by user'}</pre>
+      </div>
+      `;
+      c.appendChild(div);
+    });
+  } catch (e) {
+    c.innerHTML = '<div class="small" style="color:#b32424">Error: '+e.message+'</div>';
+    document.getElementById('msg').innerText = e.stack || e.message;
+  }
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target;
+  if (t.matches('.download')) {
+    const rid = t.dataset.rid;
+    try {
+      const j = await apiGet('/api/download/' + encodeURIComponent(rid));
+      alert('Downloaded encrypted blob — see console and msg area');
+      console.log('download', j);
+      document.getElementById('msg').innerText = JSON.stringify(j, null, 2);
+    } catch (err) {
+      alert('Download error: ' + err.message);
+    }
+  }
+  if (t.matches('.verify')) {
+    const rid = t.dataset.rid;
+    try {
+      const j = await apiPost('/api/admin/verify', { recordId: rid });
+      alert('Verify response: ' + JSON.stringify(j));
+      console.log('verify', j);
+      render();
+    } catch(err){ alert('Verify error: ' + err.message); }
+  }
+  if (t.matches('.reject')) {
+    const rid = t.dataset.rid;
+    try {
+      const j = await apiPost('/api/admin/reject', { recordId: rid });
+      alert('Reject response: ' + JSON.stringify(j));
+      render();
+    } catch(err){ alert('Reject error: ' + err.message); }
+  }
+});
+
+document.getElementById('refreshBtn').onclick = render;
+document.getElementById('loginBtn').onclick = async () => {
+  const pw = prompt('Govt password (demo):','govtpass');
+  const j = await apiPost('/login', { role: 'govt', password: pw });
+  alert(JSON.stringify(j));
+  render();
+};
+document.getElementById('logoutBtn').onclick = async ()=>{ await fetch('/logout'); alert('Logged out'); };
+
+render();
+</script></body></html>
