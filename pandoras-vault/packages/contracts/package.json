@@ -1,3 +1,0 @@
-{
-  "_description": "Contracts Package Configuration - Dependencies and scripts for Hardhat + Foundry smart contract development. Key dependencies: hardhat, @nomiclabs/hardhat-ethers, @nomiclabs/hardhat-etherscan, ethers, @openzeppelin/contracts, @typechain/hardhat, hardhat-gas-reporter, solidity-coverage. Scripts: compile (hardhat compile), test (hardhat test), deploy:mumbai (hardhat run scripts/deploy.ts --network mumbai), verify (hardhat run scripts/verify.ts), coverage (hardhat coverage), node (hardhat node). DevDependencies: typescript, @types/node, @nomicfoundation/hardhat-toolbox, chai, mocha"
-}

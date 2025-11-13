@@ -1,3 +1,0 @@
-{
-  "_description": "EAS (Expo Application Services) Configuration - Build and deployment configuration for Expo apps. Contains build profiles (development, preview, production), iOS provisioning profiles, Android keystore configuration, submit profiles for app stores, environment variables per profile. Settings include build type (apk vs aab), iOS simulator builds, code signing, OTA update channels. Commands: eas build --profile production, eas submit --platform ios"
-}

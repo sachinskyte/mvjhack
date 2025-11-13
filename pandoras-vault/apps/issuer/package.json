@@ -1,3 +1,0 @@
-{
-  "_description": "Issuer Backend Package Configuration - Dependencies and scripts for Node.js + Fastify API. Key dependencies: fastify, @veramo/core, @veramo/credential-w3c, @veramo/did-manager, @prisma/client, ethers, axios, aws-sdk (or @azure/cognitiveservices-face), pinata-sdk, dotenv. Scripts: dev (tsx watch src/server.ts), build (tsc), start (node dist/server.js), migrate (prisma migrate deploy), generate (prisma generate). DevDependencies: typescript, @types/node, tsx, prisma, eslint"
-}
