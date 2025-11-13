@@ -1,0 +1,50 @@
+# Issuer Backend Deployment Workflow
+#
+# Purpose: Deploy issuer API to Fly.io
+#
+# Trigger:
+# - On push to main branch (paths: apps/issuer/**)
+# - Manual workflow dispatch
+#
+# Jobs:
+#
+# 1. deploy:
+#    - Checkout code
+#    - Setup Fly.io CLI
+#    - Authenticate with Fly.io: flyctl auth token
+#    - Deploy application: flyctl deploy --config apps/issuer/fly.toml
+#    - Run database migrations: flyctl ssh console -C "npx prisma migrate deploy"
+#    - Health check: curl deployed endpoint /health
+#    - Post deployment status to Slack
+#
+# Environment secrets:
+# - FLY_API_TOKEN: Fly.io authentication token
+# - DATABASE_URL: Set as Fly.io secret
+# - ISSUER_PRIVATE_KEY: Set as Fly.io secret
+# - PINATA_API_KEY: Set as Fly.io secret
+# - PINATA_SECRET_KEY: Set as Fly.io secret
+# - BLOCKCHAIN_RPC_URL: Set as Fly.io secret
+#
+# Pre-deployment:
+# - Build Docker image (handled by Fly.io)
+# - Run tests (depends on CI workflow)
+#
+# Post-deployment:
+# - Health check verification
+# - Database migration
+# - Smoke tests (optional)
+# - Rollback on failure
+#
+# Fly.io secrets (set via CLI):
+# flyctl secrets set DATABASE_URL=... --app pandoras-vault-issuer
+# flyctl secrets set ISSUER_PRIVATE_KEY=...
+#
+# Deployment strategy:
+# - Blue-green deployment (zero downtime)
+# - Auto-scaling based on traffic
+# - Multi-region (optional)
+#
+# Monitoring:
+# - Fly.io metrics dashboard
+# - Log streaming to external service (optional)
+# - Uptime monitoring

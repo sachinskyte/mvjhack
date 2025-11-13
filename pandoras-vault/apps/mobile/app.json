@@ -1,0 +1,3 @@
+{
+  "_description": "Expo App Configuration - Contains app name, slug, version, platform-specific settings (iOS/Android), permissions (camera, storage, biometrics), app icons, splash screens, deep linking scheme (pandorasvault://), build configuration, privacy settings. Includes: expo.name, expo.slug, expo.version, expo.ios.bundleIdentifier, expo.android.package, expo.plugins [expo-camera, expo-secure-store], expo.scheme for deep links"
+}

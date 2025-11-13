@@ -1,0 +1,3 @@
+{
+  "_description": "TypeScript configuration for Next.js web app. Extends Next.js defaults. Contains compiler options (target: ES2020, lib includes DOM, module: ESNext, jsx: preserve), path aliases (@/* for imports), strict type checking, incremental compilation. Include: next-env.d.ts, **/*.ts, **/*.tsx. Exclude: node_modules"
+}

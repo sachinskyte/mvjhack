@@ -1,0 +1,3 @@
+{
+  "_description": "IPFS Pinning Package Configuration - SDK for pinning to IPFS via Pinata or web3.storage. Key dependencies: @pinata/sdk or pinata-sdk, @web3-storage/w3up-client, axios, dotenv. Scripts: build (tsc), test (jest). DevDependencies: typescript, @types/node, jest, ts-jest. Exports: pin, unpin, checkPinStatus functions"
+}

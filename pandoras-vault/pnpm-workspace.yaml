@@ -1,0 +1,8 @@
+# PNPM Workspace Configuration
+#
+# Purpose: Define workspace structure for pnpm monorepo
+#
+# Packages:
+packages:
+  - 'apps/*'
+  - 'packages/*'

@@ -1,0 +1,54 @@
+# CI/CD Workflow
+#
+# Purpose: Continuous integration - lint, test, and build
+#
+# Trigger:
+# - On push to main, develop branches
+# - On pull requests to main
+#
+# Jobs:
+#
+# 1. lint:
+#    - Checkout code
+#    - Setup Node.js 18
+#    - Install pnpm
+#    - Install dependencies (pnpm install)
+#    - Run linters (pnpm lint)
+#    - Check TypeScript (pnpm type-check)
+#
+# 2. test-contracts:
+#    - Checkout code
+#    - Setup Node.js
+#    - Install dependencies
+#    - Run Hardhat tests (pnpm --filter contracts test)
+#    - Generate coverage report
+#    - Upload coverage to Codecov
+#
+# 3. test-issuer:
+#    - Checkout code
+#    - Setup Node.js
+#    - Setup PostgreSQL service
+#    - Install dependencies
+#    - Run Prisma migrations
+#    - Run backend tests (pnpm --filter issuer test)
+#
+# 4. build-web:
+#    - Checkout code
+#    - Setup Node.js
+#    - Install dependencies
+#    - Build web app (pnpm --filter web build)
+#    - Upload build artifacts
+#
+# Environment variables:
+# - NODE_VERSION: 18
+# - PNPM_VERSION: 8
+#
+# Cache:
+# - pnpm store
+# - node_modules
+#
+# Notifications:
+# - Slack/Discord webhook on failure (optional)
+#
+# Status badge:
+# - Add to README.md

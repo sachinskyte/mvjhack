@@ -1,0 +1,53 @@
+# Web Dashboard Deployment Workflow
+#
+# Purpose: Deploy web app to Vercel
+#
+# Trigger:
+# - On push to main branch (paths: apps/web/**)
+# - On pull request (creates preview deployment)
+#
+# Jobs:
+#
+# 1. deploy-preview (on PR):
+#    - Checkout code
+#    - Setup Node.js 18
+#    - Install Vercel CLI
+#    - Install dependencies
+#    - Deploy to Vercel preview: vercel deploy --token=$VERCEL_TOKEN
+#    - Comment PR with preview URL
+#
+# 2. deploy-production (on main):
+#    - Checkout code
+#    - Setup Node.js
+#    - Install Vercel CLI
+#    - Install dependencies
+#    - Deploy to Vercel production: vercel deploy --prod --token=$VERCEL_TOKEN
+#    - Post deployment URL to Slack/Discord
+#
+# Environment secrets:
+# - VERCEL_TOKEN: Vercel authentication token
+# - VERCEL_ORG_ID: Organization ID
+# - VERCEL_PROJECT_ID: Project ID
+#
+# Environment variables (set in Vercel):
+# - NEXT_PUBLIC_ISSUER_API_URL
+# - NEXT_PUBLIC_BLOCKCHAIN_RPC_URL
+# - NEXT_PUBLIC_CHAIN_ID
+# - PINATA_API_KEY
+# - WEB3_STORAGE_TOKEN
+#
+# Outputs:
+# - Deployment URL
+# - Build logs
+# - Lighthouse performance scores (optional)
+#
+# Features:
+# - Automatic preview for PRs
+# - Production deployment on merge
+# - Build cache optimization
+# - Environment variable validation
+#
+# Vercel integration:
+# - Connects to GitHub repo
+# - Auto-detects Next.js
+# - Handles build and CDN distribution
